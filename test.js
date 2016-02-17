@@ -2,6 +2,7 @@
 var arDrone = require('ar-drone');
 var fs = require('fs');
 var autonomy = require('ardrone-autonomy');
+require('events').EventEmitter.prototype._maxListeners = 100;
 
 //Set variables and drone configuration
 var mission = autonomy.createMission();
@@ -26,10 +27,11 @@ fs.writeFile('navdata.txt', "", function(err) {
 pngStream
 	.on('data', function(pngBuffer) {
 	    var now = (new Date()).getTime();
-	    client.on('navdata', function(navdata) {
+	    mission.client().on('navdata', function(navdata) {
 	    	if (baseElevation == 0) {
 	    		baseElevation = navdata.gps.elevation;
 	    	}
+	    	//console.log(navdata)
 	    	if (now - lastFrameTime > period) {
 	    		frameCounter++;
 	    		lastFrameTime = now;
@@ -56,16 +58,12 @@ pngStream
 	});
 //Flight sequence
 mission.takeoff()
-       .zero()			// Sets the current state as the reference.
-       .altitude(4)	// Climb to altitude.
-       .forward(5)
-       .right(5)
-       .backward(5)
-       .left(5)
-       .land()	// Hover in place.
-console.log("Executed mission steps")
-mission.client().land();
-console.log("Landing function called")
+	.zero()
+	.go({x: 1, y: 0, z: 0, yaw: 0})
+	.go({x: -1, y: 0, z: 1, yaw: 90})
+	.land();
+
+console.log("Executing");
 
 mission.run(function (err, result) {
     if (err) {
@@ -74,8 +72,6 @@ mission.run(function (err, result) {
         mission.client().land();
     } else {
         console.log("Mission success!");
-        mission.client().stop();
-        mission.client().land();
         process.exit(0);
     }
 });
