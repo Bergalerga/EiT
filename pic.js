@@ -21,9 +21,10 @@ fs.writeFile('navdata.txt', "", function(err) {
 
 mission.takeoff()
 		.zero()
-		.altitude(5)
-		.hover(2)
-		.forward(5)
+		.forward(1)
+		.backward(2)
+		.forward(2)
+		.hover(1000)
 		.land();
 
 mission.run(function (err, result) {
