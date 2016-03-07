@@ -13,7 +13,7 @@ var data = []; //Store navigational data
 var imageData = []; //Store images
 
 mission.client().config('general:navdata_options', 777060865); // turn on GPS
-mission.client().config('video:video_channel', 3); //Switch to bottom camera
+mission.client().config('video:video_channel', 3); //The camera being used. 0 is forward camera, 3 is bottom camera
 mission.client().config('control:altitude_max', 30000); //Max altitude
 
 fs.writeFile("navdata.txt", "", function(err) {
