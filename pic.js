@@ -1,11 +1,11 @@
-var arDrone = require('ar-drone');
-var fs = require('fs');
-var autonomy = require('ardrone-autonomy');
+var arDrone = require('ar-drone'); //Required AR-drone client
+var fs = require('fs'); //Module for using local file system
+var autonomy = require('ardrone-autonomy'); //Module to simplify drone navigation. Eg: mission.takeoff().land();
 var mission = autonomy.createMission();
 var pngStream = mission.client().getPngStream();
 
-var pictureTime = 5000;
-var lastDataTime = 0;
+var pictureTime = 5000; //Time between each picture in milliseconds
+var lastDataTime = 0; 
 var lastNavdataTime = 0;
 var frameCounter = 0;
 
@@ -22,6 +22,9 @@ fs.writeFile("navdata.txt", "", function(err) {
 	}
 });
 
+//Function used to write data to the filesystem, this will only run after a successful mission. Thus, data
+//will not be stored if the drone crashes or the fails in some way. 
+//Data will be written when "Mission success" is printed to console.
 var writeToFile = function() {
 	for (i = 0; i < imageData.length; i ++) {
 		fs.writeFile('frame' + i + '.png', imageData[i], function(err) {
@@ -47,7 +50,7 @@ var writeToFile = function() {
 	}
 	console.log("Written files");
 }
-
+//Incoming images are handled here. They are stored based in intervals based on the pictureTime variable
 pngStream.on('data', function(pngBuffer) {
 	var now = (new Date()).getTime();
 	if (now - lastDataTime > pictureTime) {
@@ -56,7 +59,7 @@ pngStream.on('data', function(pngBuffer) {
 		imageData.push(pngBuffer);
 	}
 })
-
+//Incoming navigational data are handled here. Stored based on pictureTime as well.
 mission.client().on('navdata', function(navdata) {
 	var now = (new Date()).getTime();
 	if (now - lastNavdataTime > pictureTime && navdata.gps !== undefined) {
@@ -73,9 +76,13 @@ mission.client().on('navdata', function(navdata) {
 	};
 });
 
+//START NAVIGATIONAL MISSION
+//The method takes variables as meters. F.eks, forward(10) sends the drone forward 10 meters.
 mission.client().ftrim();
 mission.takeoff().up(3).forward(10).left(10).backward(10).right(10).land();
+//END NAVIGATIONAL MISSION.
 
+//Run method
 mission.run(function (err, result) {
     if (err) {
         console.trace("Oops, something bad happened: %s", err.message);
