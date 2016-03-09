@@ -8,6 +8,7 @@ var pictureTime = 5000; //Time between each picture in milliseconds
 var lastDataTime = 0; 
 var lastNavdataTime = 0;
 var frameCounter = 0;
+boolean avoidDuplicatePhotos = false;
 
 var data = []; //Store navigational data
 var imageData = []; //Store images
@@ -54,25 +55,32 @@ var writeToFile = function() {
 pngStream.on('data', function(pngBuffer) {
 	var now = (new Date()).getTime();
 	if (now - lastDataTime > pictureTime) {
-		frameCounter ++;
-		lastDataTime = now;
-		imageData.push(pngBuffer);
+		if (!avoidDuplicatePhotos) {
+			console.log("picture taken");
+			frameCounter ++;
+			lastDataTime = now;
+			imageData.push(pngBuffer);
+			avoidDuplicatePhotos = true;
+		}
 	}
 })
 //Incoming navigational data are handled here. Stored based on pictureTime as well.
 mission.client().on('navdata', function(navdata) {
 	var now = (new Date()).getTime();
 	if (now - lastNavdataTime > pictureTime && navdata.gps !== undefined) {
-		lastNavdataTime = now;
-		console.log("got navdata");
-		var temp = [];
-		temp.push(navdata.magneto.heading.unwrapped);
-		temp.push(navdata.magneto.mz);
-		temp.push(navdata.magneto.mx);
-		temp.push(navdata.gps.latitude);
-	    temp.push(navdata.gps.longitude);
-	    temp.push(navdata.demo.altitude);
-	    data.push(temp);
+		if (avoidDuplicatePhotos) {
+			lastNavdataTime = now;
+			console.log("got navdata");
+			var temp = [];
+			temp.push(navdata.magneto.heading.unwrapped);
+			temp.push(navdata.magneto.mz);
+			temp.push(navdata.magneto.mx);
+			temp.push(navdata.gps.latitude);
+	   		temp.push(navdata.gps.longitude);
+	    	temp.push(navdata.demo.altitude);
+	    	data.push(temp);
+	    	avoidDuplicatePhotos = false;
+		}
 	};
 });
 
