@@ -1,19 +1,20 @@
-var arDrone = require('ar-drone');
-var fs = require('fs');
-var autonomy = require('ardrone-autonomy');
+var arDrone = require('ar-drone'); //Required AR-drone client
+var fs = require('fs'); //Module for using local file system
+var autonomy = require('ardrone-autonomy'); //Module to simplify drone navigation. Eg: mission.takeoff().land();
 var mission = autonomy.createMission();
 var pngStream = mission.client().getPngStream();
 
-var pictureTime = 5000;
-var lastDataTime = 0;
+var pictureTime = 5000; //Time between each picture in milliseconds
+var lastDataTime = 0; 
 var lastNavdataTime = 0;
 var frameCounter = 0;
+boolean avoidDuplicatePhotos = false;
 
 var data = []; //Store navigational data
 var imageData = []; //Store images
 
 mission.client().config('general:navdata_options', 777060865); // turn on GPS
-mission.client().config('video:video_channel', 3); //Switch to bottom camera
+mission.client().config('video:video_channel', 3); //The camera being used. 0 is forward camera, 3 is bottom camera
 mission.client().config('control:altitude_max', 30000); //Max altitude
 
 fs.writeFile("navdata.txt", "", function(err) {
@@ -22,6 +23,9 @@ fs.writeFile("navdata.txt", "", function(err) {
 	}
 });
 
+//Function used to write data to the filesystem, this will only run after a successful mission. Thus, data
+//will not be stored if the drone crashes or the fails in some way. 
+//Data will be written when "Mission success" is printed to console.
 var writeToFile = function() {
 	for (i = 0; i < imageData.length; i ++) {
 		fs.writeFile('frame' + i + '.png', imageData[i], function(err) {
@@ -47,35 +51,46 @@ var writeToFile = function() {
 	}
 	console.log("Written files");
 }
-
+//Incoming images are handled here. They are stored based in intervals based on the pictureTime variable
 pngStream.on('data', function(pngBuffer) {
 	var now = (new Date()).getTime();
 	if (now - lastDataTime > pictureTime) {
-		frameCounter ++;
-		lastDataTime = now;
-		imageData.push(pngBuffer);
+		if (!avoidDuplicatePhotos) {
+			console.log("picture taken");
+			frameCounter ++;
+			lastDataTime = now;
+			imageData.push(pngBuffer);
+			avoidDuplicatePhotos = true;
+		}
 	}
 })
-
+//Incoming navigational data are handled here. Stored based on pictureTime as well.
 mission.client().on('navdata', function(navdata) {
 	var now = (new Date()).getTime();
 	if (now - lastNavdataTime > pictureTime && navdata.gps !== undefined) {
-		lastNavdataTime = now;
-		console.log("got navdata");
-		var temp = [];
-		temp.push(navdata.magneto.heading.unwrapped);
-		temp.push(navdata.magneto.mz);
-		temp.push(navdata.magneto.mx);
-		temp.push(navdata.gps.latitude);
-	    temp.push(navdata.gps.longitude);
-	    temp.push(navdata.demo.altitude);
-	    data.push(temp);
+		if (avoidDuplicatePhotos) {
+			lastNavdataTime = now;
+			console.log("got navdata");
+			var temp = [];
+			temp.push(navdata.magneto.heading.unwrapped);
+			temp.push(navdata.magneto.mz);
+			temp.push(navdata.magneto.mx);
+			temp.push(navdata.gps.latitude);
+	   		temp.push(navdata.gps.longitude);
+	    	temp.push(navdata.demo.altitude);
+	    	data.push(temp);
+	    	avoidDuplicatePhotos = false;
+		}
 	};
 });
 
+//START NAVIGATIONAL MISSION
+//The method takes variables as meters. F.eks, forward(10) sends the drone forward 10 meters.
 mission.client().ftrim();
 mission.takeoff().up(3).forward(10).left(10).backward(10).right(10).land();
+//END NAVIGATIONAL MISSION.
 
+//Run method
 mission.run(function (err, result) {
     if (err) {
         console.trace("Oops, something bad happened: %s", err.message);
